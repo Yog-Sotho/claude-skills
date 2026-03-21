@@ -72,7 +72,7 @@ description: >-
 ...
 ```
 
-Skills live at `/mnt/skills/user/<skill-name>/SKILL.md`. The `skill-manager` skill handles all installs — no manual file-dropping required.
+The `skill-manager` skill handles all installs — no manual file-dropping required.
 
 ---
 
@@ -150,10 +150,6 @@ Skills live at `/mnt/skills/user/<skill-name>/SKILL.md`. The `skill-manager` ski
 
 # Option B: upload a .skill or .zip file, then:
 /add
-
-# Option C: manual drop
-mkdir -p /mnt/skills/user/<skill-name>
-cp <skill-name>/SKILL.md /mnt/skills/user/<skill-name>/SKILL.md
 ```
 
 ---
