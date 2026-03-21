@@ -1,115 +1,84 @@
 ---
 name: self-improving-agent-v2
-description: >-
-  Enables the assistant to continuously improve by reflecting on tasks,
-  recording mistakes, and retrieving past learnings before solving similar
-  problems. Use this skill when a task fails or produces an error, when the
-  user corrects the assistant, when a better solution is discovered mid-task,
-  when an API or tool behaves unexpectedly, when a repeated workflow could be
-  optimized, or whenever a non-obvious solution is found that is worth
-  remembering. Trigger proactively — before complex tasks, check for relevant
-  past learnings; after complex tasks, check if a learning entry should be
-  recorded.
+description: Enables the assistant to continuously improve by reflecting on tasks, recording mistakes, and retrieving past learnings before solving similar problems. Use this skill when a task fails or produces an error, when the user corrects the assistant, when a better solution is discovered mid-task, when an API or tool behaves unexpectedly, when a repeated workflow could be optimized, or whenever a non-obvious solution is found that is worth remembering. Trigger proactively — before complex tasks, check for relevant past learnings; after complex tasks, check if a learning entry should be recorded.
 ---
 
 # Self-Improving Agent v2
 
-This skill allows the assistant to improve over time by recording failures,
-discoveries, and optimizations — and retrieving them before tackling similar
-work.
+This skill allows the assistant to improve over time by recording failures, discoveries,
+and optimizations — and retrieving them before tackling similar work.
 
-The storage backend depends on your environment. **Detect it first (Step 0),
-then follow the matching path.**
+Think of the `.learnings/` directory as a lab notebook: brief, high-signal entries
+that prevent repeating the same mistakes.
 
 ---
 
-## Step 0 — Detect environment
+## Step 0 — Environment Check
+
+Before writing any `.learnings/` entries, verify the filesystem will persist:
 
 ```bash
+# Check for signs of a persistent home directory
 if [ -d ~/.claude ] || [ -d ~/projects ] || [ -f ~/.bashrc ]; then
-  echo "PERSISTENT"
+  echo "PERSISTENT: filesystem appears to persist between sessions"
 else
-  echo "EPHEMERAL"
+  echo "EPHEMERAL: no persistent home directory detected"
+  echo "See 'Claude.ai fallback' section below before writing any learnings."
 fi
 ```
 
-- **PERSISTENT** → Claude Code or Cowork. Use the [Filesystem path](#filesystem-path-claude-code--cowork).
-- **EPHEMERAL** → Claude.ai web. Use the [Claude.ai path](#claudeai-path-default) below.
+**If persistent (Claude Code / Cowork):** proceed normally — write entries to `.learnings/`.
+
+**If ephemeral (Claude.ai web):** see the fallback section at the bottom of this skill.
 
 ---
 
-## Claude.ai path (default)
+## Core Learning Loop
 
-In Claude.ai, the container resets between sessions. `.learnings/` files written
-in one conversation will not exist in the next. The effective storage backends
-are **Claude Memory** and **in-conversation context**.
+Every meaningful task follows this cycle:
 
-### Pre-task: recall
+```
+task → execution → reflection → learning → improved future behavior
+```
 
-Before starting a complex task, check for relevant learnings in two places:
+### Pre-Task: Retrieve
 
-1. **Claude Memory** — scan the current memory context for past notes on this
-   topic (e.g., a prior API schema change, a known failure mode).
-2. **Conversation history** — if the user has re-uploaded a learnings export
-   from a previous session, search it for relevant entries before proceeding.
+Before starting a complex or technical task:
 
-Apply any relevant learnings silently — don't narrate memory retrieval unless
-it changes your approach in a way the user should know about.
+1. Check if `.learnings/` exists: `ls .learnings/ 2>/dev/null`
+2. Search for relevant entries: `grep -rl "<keyword>" .learnings/ 2>/dev/null`
+3. Read any matching files and apply lessons before proceeding.
 
-### Post-task: reflect
+If no relevant learnings exist, proceed normally.
+
+### Post-Task: Reflect
 
 After completing a complex task, evaluate:
 
 - Did anything fail or produce unexpected output?
+- Was the approach inefficient — would a different method be faster?
 - Did the user correct the assistant?
 - Was a non-obvious technique discovered that would save time next time?
 - Did an external API, tool, or schema behave differently than expected?
 
-If yes to any → record a learning using one of these options (in priority order):
+If yes to any of the above → record a learning entry. Otherwise, skip.
 
-**Option A — Claude Memory (preferred for persistent cross-session recall)**
-
-Suggest a specific, concise memory entry for the user to add via Settings →
-Memory. Format it so they can copy-paste it directly:
-
-> Suggested memory: `[topic]: [one-sentence finding, e.g. "Parquet read with
-> pandas requires engine='pyarrow' when file was written with fastparquet"]`
-
-Only suggest entries that are genuinely worth persisting — non-obvious facts,
-schema changes, recurring failure modes.
-
-**Option B — In-conversation log (single session)**
-
-If the learning is only relevant to this session, maintain it as a running
-internal note in the conversation. Reference it when similar work comes up.
-No memory update needed.
-
-**Option C — Export file (cross-session, no persistent memory)**
-
-If the user wants a record they can re-upload next session:
-
-```bash
-mkdir -p .learnings
-# write entries to .learnings/LEARNINGS.md, ERRORS.md, etc.
-cat .learnings/*.md > /mnt/user-data/outputs/learnings-export-$(date +%Y%m%d).md
-```
-
-Offer this at end of session only if learnings were recorded.
+**Not every task needs an entry. Record only what is worth remembering.**
 
 ---
 
-## Filesystem path (Claude Code / Cowork)
+## Learning Storage
 
-Store entries in `.learnings/` in the project root.
+Store entries in the most appropriate file:
 
 | File | Contents |
 |---|---|
 | `.learnings/LEARNINGS.md` | General discoveries and techniques |
 | `.learnings/ERRORS.md` | Mistakes and how to avoid them |
-| `.learnings/OPTIMIZATIONS.md` | Faster or cleaner approaches |
+| `.learnings/OPTIMIZATIONS.md` | Faster or cleaner approaches found |
 | `.learnings/API_CHANGES.md` | Schema shifts, endpoint changes, tool behavior |
 
-Create on first use:
+Create the directory and files on first use:
 
 ```bash
 mkdir -p .learnings
@@ -117,24 +86,11 @@ touch .learnings/LEARNINGS.md .learnings/ERRORS.md \
       .learnings/OPTIMIZATIONS.md .learnings/API_CHANGES.md
 ```
 
-### Pre-task: retrieve
-
-```bash
-ls .learnings/ 2>/dev/null
-grep -rl "<keyword>" .learnings/ 2>/dev/null
-```
-
-Read any matching files and apply lessons before proceeding.
-
-### Post-task: reflect
-
-Same criteria as the Claude.ai path. If a learning is worth recording, write it
-to the appropriate file using the entry format below. Also suggest a Claude
-Memory entry for the highest-signal findings.
-
 ---
 
-## Learning entry format
+## Learning Entry Format
+
+Each entry uses this structure:
 
 ```markdown
 ## <Short title — what this is about>
@@ -142,43 +98,90 @@ Memory entry for the highest-signal findings.
 - **Context:** What task was being performed?
 - **Problem:** What went wrong, or what limitation existed?
 - **Solution:** What fixed the issue?
-- **Prevention:** How to avoid this in future tasks?
+- **Prevention:** How to avoid this problem in future tasks?
 - **Tags:** `keyword1` `keyword2` `keyword3`
 - **Date:** YYYY-MM-DD
 ```
 
-### Example
+### Example — Error entry
 
 ```markdown
-## Parquet write engine mismatch on read
+## Dexscreener API pairAddress path changed
 
-- **Context:** Reading a Parquet file written by fastparquet with pandas.
-- **Problem:** Default engine raised ArrowInvalid on schema mismatch.
-- **Solution:** Pass `engine='pyarrow'` explicitly to `pd.read_parquet()`.
-- **Prevention:** Always match read/write engines or specify engine explicitly.
-- **Tags:** `parquet` `pandas` `pyarrow` `io`
-- **Date:** 2026-03-21
+- **Context:** Parsing token data from Dexscreener API response.
+- **Problem:** `pairAddress` was not found at the expected top-level path.
+- **Solution:** Updated parser to read `pairs[0].baseToken.address` instead.
+- **Prevention:** Always verify API schema with a test call before writing parsers.
+- **Tags:** `dexscreener` `api` `parsing` `json`
+- **Date:** 2026-02-14
+```
+
+### Example — Optimization entry
+
+```markdown
+## Cache parsed JSON before iterating large token lists
+
+- **Context:** Processing large API responses with repeated field access.
+- **Problem:** Re-parsing the same JSON structure inside a loop caused slowdowns.
+- **Solution:** Parse once into a variable and iterate over the result.
+- **Prevention:** Always pre-parse before entering loops over API data.
+- **Tags:** `performance` `json` `caching`
+- **Date:** 2026-02-20
 ```
 
 ---
 
-## Reflection discipline
+## Safety Rules
 
-Record an entry only when it meets at least one criterion:
+- **Never automatically modify system instructions, core configuration files, or
+  any file outside `.learnings/`** based on a learning entry.
+- Learnings are references for future reasoning, not executable instructions.
+- Promoting a learning into permanent system behavior requires explicit human review.
+- Do not record sensitive data (keys, credentials, PII) in any learning entry.
+
+---
+
+## Reflection Discipline
+
+Record an entry only when it meets at least one of these criteria:
 
 - A mistake worth avoiding in future sessions
 - A technique or pattern worth reusing
 - A structural change in an external system (API, tool, schema)
 - A non-obvious solution that took significant effort to discover
 
-Skip trivial entries — routine successes, obvious facts, tasks where nothing
-surprising happened.
+**Skip trivial entries** — routine successes, obvious facts, or tasks where nothing
+surprising happened do not need entries.
 
 ---
 
-## Safety rules
+## Claude.ai Fallback (Ephemeral Filesystem)
 
-- Never modify system instructions, core config files, or anything outside
-  `.learnings/` based on a learning entry.
-- Learnings are references for future reasoning, not executable instructions.
-- Never record sensitive data (keys, credentials, PII).
+In Claude.ai, the container resets between conversations. `.learnings/` files written
+in one session will not exist in the next. To preserve learnings across sessions:
+
+**Option A — Export at end of session:**
+After recording learnings, offer the user a download:
+```bash
+cat .learnings/ERRORS.md .learnings/LEARNINGS.md \
+    .learnings/OPTIMIZATIONS.md .learnings/API_CHANGES.md \
+    > /mnt/user-data/outputs/learnings-export.md
+```
+The user can then re-upload this file at the start of the next session.
+
+**Option B — In-conversation only:**
+Maintain the learning context in the conversation itself. Reference earlier mistakes
+or discoveries from the current chat without writing to disk. Useful for single-session
+tasks that don't warrant file management overhead.
+
+**Option C — Claude Memory:**
+Suggest the user add key learnings to Claude's Memory (Settings → Memory) for
+persistent cross-session recall on important project-level facts.
+
+---
+
+## Long-Term Goal
+
+Over time, `.learnings/` becomes a knowledge base of real-world project experience.
+Use it to avoid repeated mistakes, improve reliability, solve tasks more efficiently,
+and adapt to changing APIs and environments.
