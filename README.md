@@ -14,47 +14,7 @@ structured workflows, and hard-won best practices directly inside Claude.**
 
 </div>
 
----
-
-## ⭐ The Star: `skill-manager`
-
-> *A full CLI interface for your Claude skillset — without leaving the chat.*
-
-`skill-manager` is the crown jewel of this repo. It turns Claude into a live skill package manager, exposing a slash-command interface to inspect, install, edit, and delete skills on the fly.
-
-```
-/list     → see every installed skill, flagged active or off
-/add      → install from .skill, .zip, .md, or inline paste
-/edit     → open any skill for in-chat editing
-/save     → persist your edits atomically to disk
-/delete   → remove a skill (with confirmation — it's not a cowboy operation)
-/help     → full command reference
-```
-
-**How it works:**
-
-```bash
-# In Claude, just type:
-/list
-
-# Output:
-📦 Your Skills
-
-USER SKILLS (editable)
-  ✅ [ACTIVE]  elite-coder       — Three mandatory gates before any code is written
-  ✅ [ACTIVE]  skill-manager     — This very CLI you're using right now
-  ✅ [ACTIVE]  pytorch-patterns  — Idiomatic deep learning pipelines
-  ...
-
-BUILT-IN SKILLS (read-only)
-  ✅ [ACTIVE]  docx / pdf / pptx / xlsx / frontend-design ...
-```
-
-No config files. No terminal. No `npm install`. Just type `/add`, paste your skill, done.
-
----
-
-## What Is a Skill?
+## ❓ What Is a Skill?
 
 A skill is a `SKILL.md` file with YAML frontmatter that tells Claude when to activate and how to behave:
 
@@ -66,14 +26,7 @@ description: >-
   "fix", "build", "refactor", or any request for code. When in doubt, apply this
   skill — precise coding is never the wrong call.
 ---
-
-# Elite Coder
-## Gate 1 — Lock On (no code until this clears)
-...
 ```
-
-The `skill-manager` skill handles all installs — no manual file-dropping required.
-
 ---
 
 ## Skill Index
